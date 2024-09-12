@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"math/rand"
+
 	rl "github.com/gen2brain/raylib-go/raylib"
 )
 
@@ -73,6 +75,7 @@ func (g *Game) Init() {
 }
 
 func (g *Game) Update() {
+
 	if !g.started {
 		y := rl.GetMousePosition().Y
 		x := rl.GetMousePosition().X
@@ -109,6 +112,23 @@ func (g *Game) Update() {
 	}
 
 	if g.started {
+		currentIndex := rand.Intn(7)
+		switch currentIndex {
+		case 0:
+			g.aliveColor = rl.Green
+		case 1:
+			g.aliveColor = rl.Red
+		case 2:
+			g.aliveColor = rl.Blue
+		case 3:
+			g.aliveColor = rl.Yellow
+		case 4:
+			g.aliveColor = rl.Pink
+		case 5:
+			g.aliveColor = rl.Purple
+		case 6:
+			g.aliveColor = rl.White
+		}
 		nextGeneration := make([][]Cell, g.height)
 		for i := range nextGeneration {
 			nextGeneration[i] = make([]Cell, g.width)
