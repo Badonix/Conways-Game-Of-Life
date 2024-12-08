@@ -70,9 +70,23 @@ func RenderCurrent(game *Game) {
 			} else if game.currentMatrix[i][j].state == "hover" {
 				currentColor = game.hoverColor
 			}
-			rl.DrawRectangle(int32(j*int(game.cellWidth)), int32(i*int(game.cellWidth)), game.cellWidth, game.cellWidth, currentColor)
+			rl.DrawRectangle(
+				int32(j*int(game.cellWidth)),
+				int32(i*int(game.cellWidth)),
+				game.cellWidth,
+				game.cellWidth,
+				currentColor,
+			)
 		}
 	}
+
+	// Draw a white border around the grid
+	rl.DrawRectangleLines(
+		0, 0,
+		game.width*game.cellWidth,
+		game.height*game.cellWidth,
+		rl.White,
+	)
 }
 
 func StartGame(g *Game, x, y int32) {
