@@ -1,9 +1,6 @@
 package main
 
 import (
-	"fmt"
-	"math/rand"
-
 	rl "github.com/gen2brain/raylib-go/raylib"
 )
 
@@ -26,7 +23,6 @@ type Cell struct {
 }
 
 func main() {
-
 	game := Game{}
 	game.Init()
 	rl.InitWindow(game.width*game.cellWidth, game.height*game.cellWidth, "Conway's game of life")
@@ -36,19 +32,7 @@ func main() {
 
 	for !rl.WindowShouldClose() {
 		rl.BeginDrawing()
-
-		for i := 0; i < len(game.currentMatrix); i++ {
-			for j := 0; j < len(game.currentMatrix[i]); j++ {
-				currentColor := game.deadColor
-				if game.currentMatrix[i][j].state == "alive" {
-					currentColor = game.aliveColor
-				} else if game.currentMatrix[i][j].state == "hover" {
-					currentColor = game.hoverColor
-				}
-				rl.DrawRectangle(int32(j*int(game.cellWidth)), int32(i*int(game.cellWidth)), game.cellWidth, game.cellWidth, currentColor)
-			}
-		}
-
+		RenderCurrent(&game)
 		game.Update()
 		rl.ClearBackground(rl.White)
 		rl.EndDrawing()
@@ -64,6 +48,9 @@ func (g *Game) Init() {
 	g.hoverColor = rl.Gray
 	g.started = false
 
+	GenerateInitialMatrix(g)
+}
+func GenerateInitialMatrix(g *Game) {
 	matrix := make([][]Cell, g.height)
 	for i := range matrix {
 		matrix[i] = make([]Cell, g.width)
@@ -74,89 +61,105 @@ func (g *Game) Init() {
 	g.currentMatrix = matrix
 }
 
-func (g *Game) Update() {
+func RenderCurrent(game *Game) {
+	for i := 0; i < len(game.currentMatrix); i++ {
+		for j := 0; j < len(game.currentMatrix[i]); j++ {
+			currentColor := game.deadColor
+			if game.currentMatrix[i][j].state == "alive" {
+				currentColor = game.aliveColor
+			} else if game.currentMatrix[i][j].state == "hover" {
+				currentColor = game.hoverColor
+			}
+			rl.DrawRectangle(int32(j*int(game.cellWidth)), int32(i*int(game.cellWidth)), game.cellWidth, game.cellWidth, currentColor)
+		}
+	}
+}
 
+func StartGame(g *Game, x, y int32) {
+	g.started = true
+	g.currentMatrix[y][x].state = g.currentMatrix[y][x].previousState
+}
+
+func HandleClick(g *Game, x, y float32) {
+	currentCellY := int32(y) / g.cellWidth
+	currentCellX := int32(x) / g.cellWidth
+	if g.currentMatrix[currentCellY][currentCellX].previousState == "alive" {
+		g.currentMatrix[currentCellY][currentCellX].state = "dead"
+		g.currentMatrix[currentCellY][currentCellX].previousState = "dead"
+	} else {
+		g.currentMatrix[currentCellY][currentCellX].state = "alive"
+		g.currentMatrix[currentCellY][currentCellX].previousState = "alive"
+	}
+
+}
+
+func Hover(g *Game, currentCellY, currentCellX int32) {
+	if currentCellY != g.previousCellY || currentCellX != g.previousCellX {
+		g.currentMatrix[g.previousCellY][g.previousCellX].state = g.currentMatrix[g.previousCellY][g.previousCellX].previousState
+
+		g.currentMatrix[currentCellY][currentCellX].previousState = g.currentMatrix[currentCellY][currentCellX].state
+
+		g.currentMatrix[currentCellY][currentCellX].state = "hover"
+
+		g.previousCellY = currentCellY
+		g.previousCellX = currentCellX
+	}
+}
+
+func HandleNextGeneration(g *Game) {
+	nextGeneration := make([][]Cell, g.height)
+	for i := range nextGeneration {
+		nextGeneration[i] = make([]Cell, g.width)
+		for j := 0; j < int(g.width); j++ {
+			nextGeneration[i][j] = Cell{state: "dead"}
+		}
+	}
+
+	for y := 0; y < len(g.currentMatrix); y++ {
+		for x := 0; x < len(g.currentMatrix[0]); x++ {
+			neighbours := countNeighbours(&g.currentMatrix, x, y)
+
+			currentCell := g.currentMatrix[y][x]
+
+			nextState := "dead"
+			if currentCell.state == "alive" {
+				if neighbours == 2 || neighbours == 3 {
+					nextState = "alive"
+				}
+			} else if neighbours == 3 {
+				nextState = "alive"
+			}
+			nextGeneration[y][x].state = nextState
+		}
+	}
+	g.currentMatrix = nextGeneration
+
+}
+
+func (g *Game) Update() {
 	if !g.started {
 		y := rl.GetMousePosition().Y
 		x := rl.GetMousePosition().X
+
 		currentCellY := int32(y) / g.cellWidth
 		currentCellX := int32(x) / g.cellWidth
+
+		// Start Game If Space is clicked
 		if rl.IsKeyPressed(rl.KeySpace) {
-			g.started = true
-			g.currentMatrix[currentCellY][currentCellX].state = g.currentMatrix[currentCellY][currentCellX].previousState
-
-			fmt.Println(countNeighbours(&g.currentMatrix, 3, 3))
+			StartGame(g, currentCellX, currentCellY)
 		}
 
-		if currentCellY != g.previousCellY || currentCellX != g.previousCellX {
-			g.currentMatrix[g.previousCellY][g.previousCellX].state = g.currentMatrix[g.previousCellY][g.previousCellX].previousState
+		// Gray on hover
+		Hover(g, currentCellY, currentCellX)
 
-			g.currentMatrix[currentCellY][currentCellX].previousState = g.currentMatrix[currentCellY][currentCellX].state
-
-			g.currentMatrix[currentCellY][currentCellX].state = "hover"
-
-			g.previousCellY = currentCellY
-			g.previousCellX = currentCellX
-		}
+		// Change state of cell
 		if rl.IsMouseButtonPressed(0) {
-			currentCellY := int32(y) / g.cellWidth
-			currentCellX := int32(x) / g.cellWidth
-			if g.currentMatrix[currentCellY][currentCellX].previousState == "alive" {
-				g.currentMatrix[currentCellY][currentCellX].state = "dead"
-				g.currentMatrix[currentCellY][currentCellX].previousState = "dead"
-			} else {
-				g.currentMatrix[currentCellY][currentCellX].state = "alive"
-				g.currentMatrix[currentCellY][currentCellX].previousState = "alive"
-			}
+			HandleClick(g, x, y)
 		}
 	}
 
 	if g.started {
-		currentIndex := rand.Intn(7)
-		switch currentIndex {
-		case 0:
-			g.aliveColor = rl.Green
-		case 1:
-			g.aliveColor = rl.Red
-		case 2:
-			g.aliveColor = rl.Blue
-		case 3:
-			g.aliveColor = rl.Yellow
-		case 4:
-			g.aliveColor = rl.Pink
-		case 5:
-			g.aliveColor = rl.Purple
-		case 6:
-			g.aliveColor = rl.White
-		}
-		nextGeneration := make([][]Cell, g.height)
-		for i := range nextGeneration {
-			nextGeneration[i] = make([]Cell, g.width)
-			for j := 0; j < int(g.width); j++ {
-				nextGeneration[i][j] = Cell{state: "dead"}
-			}
-		}
-
-		for y := 0; y < len(g.currentMatrix); y++ {
-			for x := 0; x < len(g.currentMatrix[0]); x++ {
-				neighbours := countNeighbours(&g.currentMatrix, x, y)
-
-				currentCell := g.currentMatrix[y][x]
-
-				if currentCell.state == "alive" {
-					if neighbours < 2 || neighbours > 3 {
-						nextGeneration[y][x].state = "dead"
-					} else {
-						nextGeneration[y][x].state = "alive"
-					}
-				} else {
-					if neighbours == 3 {
-						nextGeneration[y][x].state = "alive"
-					}
-				}
-			}
-		}
-		g.currentMatrix = nextGeneration
+		HandleNextGeneration(g)
 	}
 }
 
